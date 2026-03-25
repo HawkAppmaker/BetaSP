@@ -3,203 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzBmMTcyYSIvPjxwYXRoIGQ9Ik0yNTYgMTI4IEwxMjggMzg0IEwzODQgMzg0IFoiIGZpbGw9IiMyZGQ0YmYiLz48L3N2Zz4=">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Shatterpoint</title>
+    <title>Shatterpoint | Warp Reset</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #0f172a; touch-action: none; font-family: ui-sans-serif, system-ui; color: white; }
+        body { margin: 0; overflow: hidden; background: #0f172a; touch-action: none; font-family: sans-serif; color: white; }
         canvas { display: block; }
-        .ui-element { transition: opacity 0.8s ease-in-out; }
-        .zen-mode .ui-element { opacity: 0 !important; pointer-events: none; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; background: #2dd4bf; cursor: pointer; border: 2px solid #0f172a; }
+        .ui-element { transition: opacity 0.5s; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <div id="intro-overlay" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-8 text-center transition-opacity duration-1000">
-        <div class="max-w-md flex flex-col items-center">
-            <svg class="w-16 h-16 mb-6 drop-shadow-[0_0_15px_rgba(45,212,191,0.3)]" viewBox="0 0 512 512">
-                <path d="M256 128 L128 384 L384 384 Z" fill="#2dd4bf"/>
-            </svg>
-            <h1 class="text-teal-400 font-black text-6xl mb-2 tracking-tighter italic uppercase">Shatterpoint</h1>
-            <p class="text-slate-500 text-[10px] uppercase tracking-[0.4em] mb-10">Neural Reset Protocol</p>
-            <div class="bg-slate-900/80 border border-white/5 rounded-3xl p-6 mb-10 text-left space-y-4">
-                <p class="text-slate-400 text-xs leading-relaxed">Target <span class="text-rose-500 font-bold">Red Static</span> to clear load. Geometry evolves every 3 levels. 2 Taps: Zen | 3 Taps: EMDR.</p>
-            </div>
-            <button onclick="startApp()" class="w-full py-5 bg-teal-500 text-slate-950 font-black rounded-2xl active:scale-95 transition-all uppercase tracking-[0.2em] text-sm shadow-2xl shadow-teal-500/20">Start 2-Min Reset</button>
+    <div id="intro-overlay" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-8 text-center">
+        <div class="max-w-md">
+            <h1 class="text-teal-400 font-black text-6xl mb-4 italic uppercase tracking-tighter">Shatterpoint</h1>
+            <p class="text-slate-500 text-[10px] uppercase tracking-[0.4em] mb-12">Neural Warp Protocol</p>
+            <button onclick="startApp()" class="px-16 py-6 bg-teal-500 text-slate-950 font-black rounded-2xl active:scale-95 transition-all uppercase tracking-widest text-sm shadow-2xl shadow-teal-500/20">
+                Enter Flow State
+            </button>
         </div>
     </div>
 
-    <div class="ui-element absolute top-10 left-8 z-20 flex flex-col space-y-6 opacity-40 hover:opacity-100">
-        <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.5" class="w-24 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-teal-500">
-        <div id="timer-display" class="text-teal-400 font-mono text-2xl tracking-tighter">02:00</div>
-    </div>
-
-    <div class="absolute top-10 w-full text-center pointer-events-none z-10 select-none">
-        <h1 id="status" class="ui-element text-teal-400 font-black text-3xl tracking-widest uppercase italic opacity-60">Level 1</h1>
-        <p id="mode-label" class="ui-element text-rose-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2 opacity-0">Bilateral Mode Active</p>
+    <div class="ui-element absolute top-10 w-full flex justify-between px-10 z-20 opacity-40">
+        <div id="timer-display" class="text-teal-400 font-mono text-3xl tracking-tighter">02:00</div>
+        <div id="status" class="text-slate-400 font-bold text-xs uppercase tracking-[0.3em]">Lvl 1</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
-        }
-
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-        let fragments = [], glitches = [], isPaused = true, isZen = false, isEMDR = false;
-        let calmScore = 0, pulseValue = 0, globalRotation = 0, emdrSweep = 0;
-        let lastTap = 0, tapCount = 0, timeLeft = 120, timerInterval;
-        let audioStarted = false, masterVol = 0.5;
-        let savedData = JSON.parse(localStorage.getItem('shatterpoint_v6')) || { level: 1, totalShattered: 0 };
+        let fragments = [], glitches = [], stars = [], isPaused = true;
+        let centralPulse = 1.0, pulseGlow = 0, timeLeft = 120;
+        let level = 1, totalShattered = 0;
 
-        let audioCtx, resOsc, resGain, panner;
-        
-        function initAudio() {
-            if (audioStarted) return;
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            resOsc = audioCtx.createOscillator(); resGain = audioCtx.createGain(); panner = audioCtx.createStereoPanner();
-            resOsc.type = 'sine'; resOsc.frequency.value = 110; resGain.gain.value = 0;
-            resOsc.connect(resGain); resGain.connect(panner); panner.connect(audioCtx.destination);
-            resOsc.start(); audioStarted = true;
+        // 1. Initialize Warp Starfield
+        for (let i = 0; i < 150; i++) {
+            stars.push({
+                x: Math.random() * canvas.width - canvas.width/2,
+                y: Math.random() * canvas.height - canvas.height/2,
+                z: Math.random() * canvas.width,
+                size: Math.random() * 2
+            });
         }
 
         function startApp() {
-            initAudio();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            document.getElementById('intro-overlay').style.opacity = '0';
-            setTimeout(() => { document.getElementById('intro-overlay').classList.add('hidden'); isPaused = false; startTimer(); }, 1000);
-            updateHUD();
+            document.getElementById('intro-overlay').style.display = 'none';
+            isPaused = false;
+            setInterval(() => { if(timeLeft > 0) timeLeft--; updateHUD(); }, 1000);
         }
 
-        function startTimer() {
-            timerInterval = setInterval(() => {
-                if (timeLeft > 0) {
-                    timeLeft--;
-                    const mins = Math.floor(timeLeft / 60); const secs = timeLeft % 60;
-                    document.getElementById('timer-display').innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
-                } else { clearInterval(timerInterval); finishSession(); }
-            }, 1000);
+        function updateHUD() {
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            document.getElementById('timer-display').innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+            document.getElementById('status').innerText = `Lvl ${level}`;
         }
-
-        function finishSession() { isPaused = true; alert(`Reset Complete. Level: ${savedData.level}.`); location.reload(); }
-        function updateHUD() { document.getElementById('status').innerText = `Level ${savedData.level}`; }
-        document.getElementById('volume-control').addEventListener('input', (e) => masterVol = e.target.value);
 
         class Fragment {
-            constructor(x, y) {
-                this.x = x; this.y = y; this.ring = Math.floor(Math.random() * 5) + 1;
-                this.angle = Math.random() * Math.PI * 2; this.radius = this.ring * 45;
-                this.vx = (Math.random() - 0.5) * 35; this.vy = (Math.random() - 0.5) * 35;
-                this.size = Math.random() * 3 + 1.5; this.isSnapping = false;
-                this.sides = Math.floor(savedData.level / 3) + 3;
+            constructor(x, y, tx, ty) {
+                this.x = x; this.y = y; this.tx = tx; this.ty = ty;
+                this.vx = (Math.random() - 0.5) * 40;
+                this.vy = (Math.random() - 0.5) * 40;
+                this.isHome = false; this.counted = false;
             }
-            update(scale, centerX, hue) {
-                if (!this.isSnapping) {
-                    this.x += this.vx; this.y += this.vy; this.vx *= 0.90; this.vy *= 0.90;
-                    if (Math.abs(this.vx) < 0.5) this.isSnapping = true;
-                } else {
-                    const step = (Math.PI * 2) / this.sides;
-                    const armAngle = Math.floor(this.angle / step) * step;
-                    const tx = centerX + Math.cos(armAngle + globalRotation) * (this.radius * scale);
-                    const ty = (canvas.height/2) + Math.sin(armAngle + globalRotation) * (this.radius * scale);
-                    this.x += (tx - this.x) * 0.08; this.y += (ty - this.y) * 0.08;
+            update() {
+                if (!this.isHome) {
+                    this.x += this.vx; this.y += this.vy;
+                    this.vx *= 0.88; this.vy *= 0.88;
+                    if (Math.abs(this.vx) < 1) {
+                        this.x += (this.tx - this.x) * 0.12;
+                        this.y += (this.ty - this.y) * 0.12;
+                    }
+                    if (Math.abs(this.x - this.tx) < 2) this.isHome = true;
                 }
-                this.color = `hsla(${hue}, 70%, 55%, 0.8)`;
             }
-            draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); }
+            draw() {
+                ctx.fillStyle = "#2dd4bf";
+                ctx.fillRect(this.x, this.y, 2, 2);
+            }
         }
 
         class Glitch {
             constructor() {
-                this.x = Math.random() > 0.5 ? -40 : canvas.width + 40; this.y = Math.random() * canvas.height;
-                this.speed = 1.5 + (savedData.level * 0.08);
+                const angle = Math.random() * Math.PI * 2;
+                this.x = canvas.width/2 + Math.cos(angle) * canvas.width;
+                this.y = canvas.height/2 + Math.sin(angle) * canvas.width;
+                this.speed = 2 + (level * 0.4);
             }
-            update(centerX) {
-                const dx = centerX - this.x; const dy = (canvas.height/2) - this.y;
-                const d = Math.sqrt(dx*dx + dy*dy);
-                this.x += (dx/d) * this.speed; this.y += (dy/d) * this.speed;
-                return d;
+            update() {
+                const dx = (canvas.width/2) - this.x;
+                const dy = (canvas.height/2) - this.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                this.x += (dx/dist) * this.speed;
+                this.y += (dy/dist) * this.speed;
+                return dist;
             }
-            draw() { ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 1.5; ctx.strokeRect(this.x - 7, this.y - 7, 14, 14); }
+            draw() {
+                ctx.strokeStyle = '#f43f5e';
+                ctx.strokeRect(this.x - 8, this.y - 8, 16, 16);
+            }
         }
 
-        function handleInput(e) {
-            if (isPaused) return;
-            const now = Date.now();
-            if (now - lastTap < 400) {
-                tapCount++;
-                if (tapCount === 1) { isZen = !isZen; document.body.classList.toggle('zen-mode', isZen); }
-                if (tapCount === 2) { isEMDR = !isEMDR; document.getElementById('mode-label').style.opacity = isEMDR ? '0.8' : '0'; if (!isEMDR) panner.pan.value = 0; }
-            } else { tapCount = 0; }
-            lastTap = now;
-            const x = e.clientX || (e.touches ? e.touches[0].clientX : 0);
-            const y = e.clientY || (e.touches ? e.touches[0].clientY : 0);
-            glitches.forEach((g, i) => {
-                if (Math.sqrt((x - g.x)**2 + (y - g.y)**2) < 60) {
-                    glitches.splice(i, 1); calmScore = Math.min(calmScore + 12, 100); savedData.totalShattered++;
-                    for(let j=0; j<15; j++) fragments.push(new Fragment(x, y));
-                    if (savedData.totalShattered % 15 === 0) {
-                        savedData.level++; updateHUD(); localStorage.setItem('shatterpoint_v6', JSON.stringify(savedData));
-                        fragments.forEach(f => { f.isSnapping = false; f.sides = Math.floor(savedData.level / 3) + 3; });
-                    }
-                }
+        function drawBackground() {
+            ctx.fillStyle = "#0f172a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const cx = canvas.width/2; const cy = canvas.height/2;
+            
+            stars.forEach(s => {
+                s.z -= (1 + (centralPulse - 1) * 60); // Stars react to pulse
+                if (s.z <= 0) s.z = canvas.width;
+                const sx = (s.x * (canvas.width / s.z)) + cx;
+                const sy = (s.y * (canvas.width / s.z)) + cy;
+                const size = s.size * (canvas.width / s.z);
+                ctx.fillStyle = `rgba(45, 212, 191, ${1 - s.z / canvas.width})`;
+                ctx.beginPath(); ctx.arc(sx, sy, size, 0, Math.PI * 2); ctx.fill();
             });
+        }
+
+        function drawLogo(scale, glow) {
+            const cx = canvas.width/2; const cy = canvas.height/2;
+            const size = 50 * scale;
+            ctx.shadowBlur = glow; ctx.shadowColor = "#2dd4bf";
+            ctx.strokeStyle = "#2dd4bf"; ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - size); ctx.lineTo(cx + size, cy + size); ctx.lineTo(cx - size, cy + size);
+            ctx.closePath(); ctx.stroke(); ctx.shadowBlur = 0;
         }
 
         function animate() {
             if (!isPaused) {
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.28)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                if (isEMDR) { emdrSweep += 0.018; panner.pan.setTargetAtTime(Math.sin(emdrSweep), audioCtx.currentTime, 0.1); }
-                const centerX = isEMDR ? (canvas.width/2) + Math.sin(emdrSweep) * (canvas.width * 0.35) : canvas.width/2;
-                const norm = calmScore / 100; pulseValue += 0.045 - (norm * 0.02); const hue = 280 - (norm * 110);
-                if (audioStarted) resGain.gain.setTargetAtTime((Math.sin(pulseValue) + 1) * 0.05 * norm * masterVol, audioCtx.currentTime, 0.1);
-                fragments.forEach(f => { f.update(1 + Math.sin(pulseValue) * 0.18, centerX, hue); f.draw(); });
-                if (Math.random() < 0.018) glitches.push(new Glitch());
-                glitches.forEach((g, i) => {
-                    const d = g.update(centerX); g.draw();
-                    if (d < 45) { glitches.splice(i, 1); calmScore = Math.max(0, calmScore - 12); }
+                drawBackground();
+                centralPulse += ( (1 + Math.sin(Date.now() / 600) * 0.02) - centralPulse) * 0.1;
+                pulseGlow *= 0.94;
+                drawLogo(centralPulse, pulseGlow);
+
+                fragments.forEach(f => {
+                    f.update(); f.draw();
+                    if (f.isHome && !f.counted) { centralPulse += 0.01; pulseGlow = 20; f.counted = true; }
                 });
-                globalRotation += 0.006; calmScore = Math.max(0, calmScore - 0.04);
+
+                if (Math.random() < 0.025) glitches.push(new Glitch());
+                glitches.forEach((g, i) => {
+                    const d = g.update(); g.draw();
+                    if (d < 50) { glitches.splice(i, 1); centralPulse = 0.7; }
+                });
             }
             requestAnimationFrame(animate);
         }
+
+        function handleInput(e) {
+            if (isPaused) return;
+            const x = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            const y = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+            glitches.forEach((g, i) => {
+                if (Math.sqrt((x-g.x)**2 + (y-g.y)**2) < 50) {
+                    glitches.splice(i, 1); totalShattered++;
+                    for(let j=0; j<20; j++) {
+                        const tx = canvas.width/2 + (Math.random() - 0.5) * 60;
+                        const ty = canvas.height/2 + (Math.random() - 0.5) * 60;
+                        fragments.push(new Fragment(g.x, g.y, tx, ty));
+                    }
+                    if (totalShattered % 10 === 0) level++;
+                }
+            });
+        }
+
         window.addEventListener('mousedown', handleInput);
         window.addEventListener('touchstart', (e) => { handleInput(e); e.preventDefault(); }, {passive: false});
         animate();
-    </script>        // 1. Temporarily Commented out for initial testing
-        /*
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
-        }
-        */
-
-        // ... rest of the code ...
-
-        function startApp() {
-            initAudio();
-            // EXPLICIT WAKEUP FOR MOBILE
-            if (audioCtx) {
-                audioCtx.resume().then(() => {
-                    console.log('Audio Context Resumed');
-                });
-            }
-            
-            document.getElementById('intro-overlay').style.opacity = '0';
-            setTimeout(() => { 
-                document.getElementById('intro-overlay').classList.add('hidden'); 
-                isPaused = false; 
-                startTimer(); 
-            }, 1000);
-            updateHUD();
-        }
-
+    </script>
 </body>
 </html>
