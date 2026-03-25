@@ -1,3 +1,30 @@
+
+        // 1. Temporarily Commented out for initial testing
+        /*
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+        }
+        */
+
+        // ... rest of the code ...
+
+        function startApp() {
+            initAudio();
+            // EXPLICIT WAKEUP FOR MOBILE
+            if (audioCtx) {
+                audioCtx.resume().then(() => {
+                    console.log('Audio Context Resumed');
+                });
+            }
+            
+            document.getElementById('intro-overlay').style.opacity = '0';
+            setTimeout(() => { 
+                document.getElementById('intro-overlay').classList.add('hidden'); 
+                isPaused = false; 
+                startTimer(); 
+            }, 1000);
+            updateHUD();
+        }
 <!DOCTYPE html>
 <html lang="en">
 <head>
